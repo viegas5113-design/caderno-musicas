@@ -364,6 +364,16 @@ body {
   color: #ffffff;
 }
 
+.btn-vault {
+  background: #475569;
+  color: #ffffff;
+  flex: 1 1 200px;
+}
+
+.btn-vault:hover {
+  background: #334155;
+}
+
 /* List Meta */
 .list-meta {
   margin-bottom: 12px;
@@ -662,6 +672,90 @@ body.dark-mode .badge-audio {
   gap: 10px;
   flex-wrap: wrap;
   margin-top: 6px;
+}
+
+.checkbox-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  cursor: pointer;
+  font-weight: 700;
+}
+
+.checkbox-field input[type="checkbox"] {
+  width: 22px;
+  height: 22px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* Vault ("Minhas Músicas") Modal */
+.vault-subtitle {
+  margin: 2px 0 0;
+  font-size: 0.9rem;
+  color: var(--text-muted);
+}
+
+.vault-actions-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.vault-actions-bar input[type="search"] {
+  flex: 1 1 220px;
+  min-height: 48px;
+  padding: 10px 14px;
+  font-size: 1rem;
+  border: 2px solid var(--border);
+  border-radius: 12px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+.vault-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.vault-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  flex-wrap: wrap;
+}
+
+.vault-item-info {
+  flex: 1 1 220px;
+  cursor: pointer;
+}
+
+.vault-item-title {
+  margin: 0 0 4px;
+  font-size: 1.12rem;
+  font-weight: 800;
+}
+
+.vault-item-meta {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.vault-item-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 /* Toast */

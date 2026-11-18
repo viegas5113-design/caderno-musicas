@@ -82,6 +82,8 @@
   const btnNew = document.getElementById('btn-new');
   const btnImport = document.getElementById('btn-import');
   const btnBackup = document.getElementById('btn-backup');
+  const btnVault = document.getElementById('btn-vault');
+  const vaultCount = document.getElementById('vault-count');
   const fileInput = document.getElementById('file-input');
 
   const btnTheme = document.getElementById('btn-theme');
@@ -102,6 +104,7 @@
   const readerFontUp = document.getElementById('reader-font-up');
   const btnCopy = document.getElementById('btn-copy');
   const btnShare = document.getElementById('btn-share');
+  const btnToggleVault = document.getElementById('btn-toggle-vault');
   const btnEdit = document.getElementById('btn-edit');
   const btnDelete = document.getElementById('btn-delete');
   const shareFallback = document.getElementById('share-fallback');
@@ -117,8 +120,15 @@
   const editCategory = document.getElementById('edit-category');
   const editStyle = document.getElementById('edit-style');
   const editContent = document.getElementById('edit-content');
+  const editVault = document.getElementById('edit-vault');
   const btnVoice = document.getElementById('btn-voice');
   const voiceStatus = document.getElementById('voice-status');
+
+  // Vault modal
+  const vaultModal = document.getElementById('vault-modal');
+  const vaultSearch = document.getElementById('vault-search');
+  const vaultList = document.getElementById('vault-list');
+  const btnVaultNew = document.getElementById('btn-vault-new');
 
   const toastEl = document.getElementById('toast');
 
@@ -207,6 +217,7 @@
     const q = searchQuery.trim().toLowerCase();
     return items
       .filter((item) => {
+        if (item.inVault) return false;
         if (activeCategory !== 'todas' && item.category !== activeCategory) {
           return false;
         }
@@ -219,11 +230,14 @@
 
   function renderList() {
     const filtered = getFilteredItems();
-    const total = items.length;
+    const panelTotal = items.filter((x) => !x.inVault).length;
+    const vaultTotal = items.length - panelTotal;
+    vaultCount.textContent = String(vaultTotal);
+
     resultsCount.textContent =
-      filtered.length === total
-        ? `${total} ${total === 1 ? 'letra guardada' : 'letras guardadas'}`
-        : `A mostrar ${filtered.length} de ${total} letras`;
+      filtered.length === panelTotal
+        ? `${panelTotal} ${panelTotal === 1 ? 'letra no painel' : 'letras no painel'}`
+        : `A mostrar ${filtered.length} de ${panelTotal} letras no painel`;
 
     itemsGrid.innerHTML = '';
 
@@ -307,6 +321,7 @@
     readerTitle.textContent = item.title;
     readerDate.textContent = `Atualizado em ${formatDate(item.updatedAt)}`;
     readerBody.textContent = item.content;
+    btnToggleVault.textContent = item.inVault ? '↩️ Mover para o Painel' : '📁 Guardar em Minhas Músicas';
     shareFallback.classList.add('hidden');
 
     clearReaderAudio();
@@ -344,7 +359,7 @@
   }
 
   // Editor Modal
-  function openEditor(item = null) {
+  function openEditor(item = null, defaultVault = false) {
     stopVoice();
     voiceStatus.textContent = '';
 
@@ -355,13 +370,15 @@
       editCategory.value = item.category || 'mar';
       editStyle.value = item.style || 'Fado';
       editContent.value = item.content;
+      editVault.checked = Boolean(item.inVault);
     } else {
-      editorHeading.textContent = 'Nova Letra / Poema';
+      editorHeading.textContent = defaultVault ? 'Guardar em Minhas Músicas' : 'Nova Letra / Poema';
       editId.value = '';
       editTitle.value = '';
       editCategory.value = activeCategory !== 'todas' ? activeCategory : 'mar';
       editStyle.value = 'Fado';
       editContent.value = '';
+      editVault.checked = Boolean(defaultVault);
     }
 
     editorModal.classList.remove('hidden');
@@ -372,9 +389,97 @@
   function closeEditor() {
     stopVoice();
     editorModal.classList.add('hidden');
-    if (readerModal.classList.contains('hidden')) {
+    if (readerModal.classList.contains('hidden') && vaultModal.classList.contains('hidden')) {
       document.body.style.overflow = '';
     }
+  }
+
+  // Vault ("Minhas Músicas") Modal
+  function openVault() {
+    vaultSearch.value = '';
+    renderVaultList();
+    vaultModal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeVault() {
+    vaultModal.classList.add('hidden');
+    if (readerModal.classList.contains('hidden') && editorModal.classList.contains('hidden')) {
+      document.body.style.overflow = '';
+    }
+  }
+
+  function renderVaultList() {
+    const q = vaultSearch.value.trim().toLowerCase();
+    const vaultItems = items
+      .filter((x) => x.inVault)
+      .filter((x) => !q || `${x.title}\n${x.content}\n${x.style}`.toLowerCase().includes(q))
+      .sort((a, b) => new Date(b.updatedAt || 0) - new Date(a.updatedAt || 0));
+
+    vaultList.innerHTML = '';
+
+    if (vaultItems.length === 0) {
+      const empty = document.createElement('div');
+      empty.className = 'empty-state';
+      empty.innerHTML = `
+        <div style="font-size: 2rem;">📁</div>
+        <p>${q ? 'Nenhuma música encontrada em Minhas Músicas.' : 'Ainda não guardaste músicas aqui. Podes mover qualquer letra para cá ou criar uma nova aqui.'}</p>
+      `;
+      vaultList.appendChild(empty);
+      return;
+    }
+
+    const frag = document.createDocumentFragment();
+    for (const item of vaultItems) {
+      const row = document.createElement('div');
+      row.className = 'vault-item';
+
+      const info = document.createElement('div');
+      info.className = 'vault-item-info';
+      const catInfo = CATEGORIES[item.category] || CATEGORIES.folclore;
+      info.innerHTML = `
+        <h3 class="vault-item-title">${item.hasAudio ? '🎵 ' : ''}${escapeHtml(item.title)}</h3>
+        <div class="vault-item-meta">${escapeHtml(catInfo.badge)} · ${escapeHtml(item.style || 'Fado')} · ${escapeHtml(formatDate(item.updatedAt))}</div>
+      `;
+      info.addEventListener('click', () => openReader(item.id));
+
+      const actions = document.createElement('div');
+      actions.className = 'vault-item-actions';
+
+      const btnOpen = document.createElement('button');
+      btnOpen.type = 'button';
+      btnOpen.className = 'btn btn-action';
+      btnOpen.textContent = '📖 Abrir';
+      btnOpen.addEventListener('click', () => openReader(item.id));
+
+      const btnRestore = document.createElement('button');
+      btnRestore.type = 'button';
+      btnRestore.className = 'btn btn-secondary';
+      btnRestore.textContent = '↩️ Painel';
+      btnRestore.title = 'Mover de volta para o painel principal';
+      btnRestore.addEventListener('click', () => {
+        item.inVault = false;
+        item.updatedAt = new Date().toISOString();
+        saveItems();
+        renderList();
+        renderVaultList();
+        showToast('Movido para o painel principal.');
+      });
+
+      actions.append(btnOpen, btnRestore);
+      row.append(info, actions);
+      frag.appendChild(row);
+    }
+
+    vaultList.appendChild(frag);
+  }
+
+  function escapeHtml(str) {
+    return String(str)
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
   }
 
   // Copy & Share
@@ -792,7 +897,10 @@
       searchInput.focus();
     });
 
-    btnNew.addEventListener('click', () => openEditor(null));
+    btnNew.addEventListener('click', () => openEditor(null, false));
+    btnVault.addEventListener('click', openVault);
+    btnVaultNew.addEventListener('click', () => openEditor(null, true));
+    vaultSearch.addEventListener('input', renderVaultList);
     btnImport.addEventListener('click', () => fileInput.click());
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     btnBackup.addEventListener('click', exportBackup);
@@ -823,6 +931,18 @@
     btnCopy.addEventListener('click', copyCurrentItem);
     btnShare.addEventListener('click', shareCurrentItem);
 
+    btnToggleVault.addEventListener('click', () => {
+      const item = items.find((x) => x.id === currentItemId);
+      if (!item) return;
+      item.inVault = !item.inVault;
+      item.updatedAt = new Date().toISOString();
+      saveItems();
+      renderList();
+      if (!vaultModal.classList.contains('hidden')) renderVaultList();
+      btnToggleVault.textContent = item.inVault ? '↩️ Mover para o Painel' : '📁 Guardar em Minhas Músicas';
+      showToast(item.inVault ? 'Guardado em "Minhas Músicas" (oculto do painel).' : 'Movido para o painel principal.');
+    });
+
     btnEdit.addEventListener('click', () => {
       const item = items.find((x) => x.id === currentItemId);
       if (item) {
@@ -840,6 +960,7 @@
         saveItems();
         closeReader();
         renderList();
+        if (!vaultModal.classList.contains('hidden')) renderVaultList();
         showToast('Letra apagada.');
       }
     });
@@ -866,6 +987,7 @@
             category: editCategory.value,
             style: editStyle.value,
             content,
+            inVault: editVault.checked,
             updatedAt: now
           };
         }
@@ -877,14 +999,16 @@
           category: editCategory.value,
           style: editStyle.value,
           content,
+          inVault: editVault.checked,
           updatedAt: now
         });
-        showToast('Nova letra guardada!');
+        showToast(editVault.checked ? 'Guardado em Minhas Músicas!' : 'Nova letra guardada!');
       }
 
       saveItems();
       closeEditor();
       renderList();
+      if (!vaultModal.classList.contains('hidden')) renderVaultList();
     });
 
     document.querySelectorAll('[data-close="reader"]').forEach((el) => {
@@ -893,11 +1017,15 @@
     document.querySelectorAll('[data-close="editor"]').forEach((el) => {
       el.addEventListener('click', closeEditor);
     });
+    document.querySelectorAll('[data-close="vault"]').forEach((el) => {
+      el.addEventListener('click', closeVault);
+    });
 
     document.addEventListener('keydown', (e) => {
       if (e.key === 'Escape') {
         if (!editorModal.classList.contains('hidden')) closeEditor();
         else if (!readerModal.classList.contains('hidden')) closeReader();
+        else if (!vaultModal.classList.contains('hidden')) closeVault();
       }
     });
 

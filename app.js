@@ -12,52 +12,7 @@
     folclore: { label: 'Folclore & Cantigas', badge: '🎶 Folclore & Cantigas' }
   };
 
-  const SEED_ITEMS = [
-    {
-      id: 'seed-1',
-      title: 'Maré Mansa de Sines',
-      category: 'mar',
-      style: 'Fado',
-      content:
-        'Quando a barra acorda cedo\n' +
-        'E o sal beija o convés,\n' +
-        'O mar guarda o seu segredo\n' +
-        'Debaixo dos nossos pés.\n\n' +
-        'Vai o barco pela espuma\n' +
-        'Com a fé de regressar,\n' +
-        'Não há estrela nem bruma\n' +
-        'Que nos faça desviar.',
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'seed-2',
-      title: 'Ventos de Burgau a Lagos',
-      category: 'terra',
-      style: 'Balada',
-      content:
-        'Dos Montinhos ao Burgau\n' +
-        'Sopra a brisa da manhã,\n' +
-        'Cada pedra, cada vau\n' +
-        'Tem memória e tem amanhã.\n\n' +
-        'Em Lagos canta a ribeira,\n' +
-        'Em Sines brilha o farol,\n' +
-        'É na nossa terra inteira\n' +
-        'Que aquece o mesmo sol.',
-      updatedAt: new Date().toISOString()
-    },
-    {
-      id: 'seed-3',
-      title: 'Quadras da Nossa Roda',
-      category: 'folclore',
-      style: 'Quadras',
-      content:
-        'Quem canta seus males espanta,\n' +
-        'Quem escreve guarda a voz,\n' +
-        'Na viola que se levanta\n' +
-        'Vive a história entre nós.',
-      updatedAt: new Date().toISOString()
-    }
-  ];
+  const SEED_ITEMS = [];
 
   // State
   let items = [];
@@ -193,11 +148,24 @@
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw === null) {
-        items = [...SEED_ITEMS];
+        items = [];
         saveItems();
       } else {
         const parsed = JSON.parse(raw);
         items = Array.isArray(parsed) ? parsed : [];
+      }
+
+      // Mover músicas existentes do painel principal para "Minhas Músicas"
+      if (!localStorage.getItem('caderno_panel_cleared_v1')) {
+        let changed = false;
+        for (const item of items) {
+          if (!item.inVault) {
+            item.inVault = true;
+            changed = true;
+          }
+        }
+        if (changed) saveItems();
+        localStorage.setItem('caderno_panel_cleared_v1', '1');
       }
     } catch (_) {
       items = [];
@@ -259,9 +227,11 @@
     vaultCount.textContent = String(vaultTotal);
 
     resultsCount.textContent =
-      filtered.length === panelTotal
-        ? `${panelTotal} ${panelTotal === 1 ? 'letra no painel' : 'letras no painel'}`
-        : `A mostrar ${filtered.length} de ${panelTotal} letras no painel`;
+      panelTotal === 0
+        ? 'Painel livre para novos temas'
+        : filtered.length === panelTotal
+          ? `${panelTotal} ${panelTotal === 1 ? 'letra no painel' : 'letras no painel'}`
+          : `A mostrar ${filtered.length} de ${panelTotal} letras no painel`;
 
     itemsGrid.innerHTML = '';
 
@@ -270,7 +240,13 @@
       empty.className = 'empty-state';
       empty.innerHTML = `
         <div style="font-size: 2.2rem;">📖</div>
-        <p>${searchQuery ? 'Nenhuma letra encontrada com essa pesquisa.' : 'Ainda não tens letras nesta categoria.'}</p>
+        <p>${
+          searchQuery
+            ? 'Nenhuma letra encontrada com essa pesquisa.'
+            : panelTotal === 0
+              ? 'Painel livre para novos temas. As tuas músicas estão guardadas em "📁 Minhas Músicas".'
+              : 'Ainda não tens letras nesta categoria.'
+        }</p>
       `;
       itemsGrid.appendChild(empty);
       return;

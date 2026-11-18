@@ -25,6 +25,7 @@
   let recognition = null;
   let isListening = false;
   let toastTimer = null;
+  let importToVault = false;
 
   // DOM Elements
   const itemsGrid = document.getElementById('items-grid');
@@ -84,6 +85,7 @@
   const vaultModal = document.getElementById('vault-modal');
   const vaultSearch = document.getElementById('vault-search');
   const vaultList = document.getElementById('vault-list');
+  const btnVaultImport = document.getElementById('btn-vault-import');
   const btnVaultNew = document.getElementById('btn-vault-new');
 
   const toastEl = document.getElementById('toast');
@@ -157,7 +159,7 @@
       }
 
       // Mover músicas existentes do painel principal para "Minhas Músicas"
-      if (!localStorage.getItem('caderno_panel_cleared_v2')) {
+      if (!localStorage.getItem('caderno_panel_cleared_v3')) {
         let changed = false;
         for (const item of items) {
           if (!item.inVault) {
@@ -166,7 +168,7 @@
           }
         }
         if (changed) saveItems();
-        localStorage.setItem('caderno_panel_cleared_v2', '1');
+        localStorage.setItem('caderno_panel_cleared_v3', '1');
       }
     } catch (_) {
       items = [];
@@ -718,6 +720,7 @@
             style: 'Balada',
             hasAudio: true,
             audioName: name,
+            inVault: importToVault,
             content: `🎵 Áudio importado: ${name}\n\nCarrega em "✏️ Editar" para escrever ou ditar por voz a letra desta música enquanto a ouves.`,
             updatedAt: new Date().toISOString()
           });
@@ -739,6 +742,7 @@
                 category: CATEGORIES[entry.category] ? entry.category : 'folclore',
                 style: entry.style || 'Fado',
                 content: String(entry.content),
+                inVault: importToVault ? true : Boolean(entry.inVault),
                 updatedAt: entry.updatedAt || new Date().toISOString()
               });
               importedCount++;
@@ -768,6 +772,7 @@
           title: cleanTitle,
           category: activeCategory !== 'todas' ? activeCategory : 'folclore',
           style: 'Fado',
+          inVault: importToVault,
           content,
           updatedAt: new Date().toISOString()
         });
@@ -780,9 +785,15 @@
     if (importedCount > 0) {
       saveItems();
       renderList();
-      showToast(`${importedCount} ${importedCount === 1 ? 'letra importada' : 'letras importadas'} com sucesso!`);
+      if (!vaultModal.classList.contains('hidden')) renderVaultList();
+      showToast(
+        importToVault
+          ? `${importedCount} ${importedCount === 1 ? 'música guardada' : 'músicas guardadas'} em Minhas Músicas!`
+          : `${importedCount} ${importedCount === 1 ? 'letra importada' : 'letras importadas'} com sucesso!`
+      );
     }
 
+    importToVault = false;
     fileInput.value = '';
   }
 
@@ -904,6 +915,10 @@
 
     btnNew.addEventListener('click', () => openEditor(null, false));
     btnVault.addEventListener('click', openVault);
+    btnVaultImport.addEventListener('click', () => {
+      importToVault = true;
+      fileInput.click();
+    });
     btnClearPanel.addEventListener('click', () => {
       let moved = 0;
       for (const item of items) {
@@ -920,7 +935,10 @@
     });
     btnVaultNew.addEventListener('click', () => openEditor(null, true));
     vaultSearch.addEventListener('input', renderVaultList);
-    btnImport.addEventListener('click', () => fileInput.click());
+    btnImport.addEventListener('click', () => {
+      importToVault = false;
+      fileInput.click();
+    });
     fileInput.addEventListener('change', (e) => handleFiles(e.target.files));
     btnBackup.addEventListener('click', exportBackup);
 

@@ -38,6 +38,7 @@
   const btnImport = document.getElementById('btn-import');
   const btnBackup = document.getElementById('btn-backup');
   const btnVault = document.getElementById('btn-vault');
+  const btnClearPanel = document.getElementById('btn-clear-panel');
   const vaultCount = document.getElementById('vault-count');
   const fileInput = document.getElementById('file-input');
 
@@ -156,7 +157,7 @@
       }
 
       // Mover músicas existentes do painel principal para "Minhas Músicas"
-      if (!localStorage.getItem('caderno_panel_cleared_v1')) {
+      if (!localStorage.getItem('caderno_panel_cleared_v2')) {
         let changed = false;
         for (const item of items) {
           if (!item.inVault) {
@@ -165,7 +166,7 @@
           }
         }
         if (changed) saveItems();
-        localStorage.setItem('caderno_panel_cleared_v1', '1');
+        localStorage.setItem('caderno_panel_cleared_v2', '1');
       }
     } catch (_) {
       items = [];
@@ -225,6 +226,7 @@
     const panelTotal = items.filter((x) => !x.inVault).length;
     const vaultTotal = items.length - panelTotal;
     vaultCount.textContent = String(vaultTotal);
+    btnClearPanel.classList.toggle('hidden', panelTotal === 0);
 
     resultsCount.textContent =
       panelTotal === 0
@@ -902,6 +904,20 @@
 
     btnNew.addEventListener('click', () => openEditor(null, false));
     btnVault.addEventListener('click', openVault);
+    btnClearPanel.addEventListener('click', () => {
+      let moved = 0;
+      for (const item of items) {
+        if (!item.inVault) {
+          item.inVault = true;
+          moved++;
+        }
+      }
+      if (moved > 0) {
+        saveItems();
+        renderList();
+        showToast(`${moved} ${moved === 1 ? 'item movido' : 'itens movidos'} para Minhas Músicas.`);
+      }
+    });
     btnVaultNew.addEventListener('click', () => openEditor(null, true));
     vaultSearch.addEventListener('input', renderVaultList);
     btnImport.addEventListener('click', () => fileInput.click());

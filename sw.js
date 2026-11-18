@@ -3,8 +3,8 @@ const CACHE_NAME = 'caderno-musicas-v1';
 const APP_SHELL = [
   './',
   './index.html',
-  './styles.css',
-  './app.js',
+  './styles.css?v=3',
+  './app.js?v=3',
   './manifest.json',
   './icons/icon-192.png',
   './icons/icon-512.png'

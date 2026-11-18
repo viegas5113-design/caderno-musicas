@@ -141,6 +141,30 @@
     bindEvents();
     updateOnlineStatus();
     registerServiceWorker();
+    loadLocalVaultCatalog();
+  }
+
+  async function loadLocalVaultCatalog() {
+    try {
+      const res = await fetch('./Minhas_Musicas/catalogo.json', { cache: 'no-store' });
+      if (!res.ok) return;
+      const catalog = await res.json();
+      if (!Array.isArray(catalog) || catalog.length === 0) return;
+
+      const existingIds = new Set(items.map((x) => x.id));
+      let added = 0;
+      for (const entry of catalog) {
+        if (entry && entry.id && !existingIds.has(entry.id)) {
+          items.push(entry);
+          added++;
+        }
+      }
+      if (added > 0) {
+        saveItems();
+        renderList();
+        if (!vaultModal.classList.contains('hidden')) renderVaultList();
+      }
+    } catch (_) {}
   }
 
   function loadPrefs() {
@@ -325,7 +349,10 @@
     shareFallback.classList.add('hidden');
 
     clearReaderAudio();
-    if (item.hasAudio) {
+    if (item.audioUrl) {
+      readerAudio.src = encodeURI(item.audioUrl);
+      readerAudioWrap.classList.remove('hidden');
+    } else if (item.hasAudio) {
       try {
         const blob = await getAudioBlob(item.id);
         if (blob) {

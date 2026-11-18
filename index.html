@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#13293d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="description" content="Caderno de Poesia & Músicas — guarda, dita por voz, lê e partilha as tuas letras e poemas, mesmo sem internet.">
+  <title>Caderno de Poesia &amp; Músicas</title>
+  <link rel="manifest" href="./manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="./icons/icon-192.png">
+  <link rel="apple-touch-icon" href="./icons/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="header-inner">
+      <div class="brand">
+        <span class="brand-icon" aria-hidden="true">🎵</span>
+        <div>
+          <h1>Caderno de Poesia &amp; Músicas</h1>
+          <p class="subtitle">As tuas letras, quadras e cantigas sempre à mão</p>
+        </div>
+      </div>
+
+      <div class="header-tools">
+        <span id="offline-badge" class="status-pill" title="Estado da ligação">Pronto Offline</span>
+        <button type="button" id="btn-theme" class="icon-btn" aria-label="Alternar modo de leitura escuro" title="Modo Claro / Escuro">
+          🌙
+        </button>
+        <div class="font-controls" aria-label="Tamanho da letra">
+          <button type="button" id="btn-font-down" class="icon-btn" title="Diminuir letra">A-</button>
+          <button type="button" id="btn-font-up" class="icon-btn" title="Aumentar letra">A+</button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="app-main">
+    <!-- Barra de Categorias Grandes -->
+    <nav class="categories-bar" aria-label="Categorias">
+      <button type="button" class="cat-btn active" data-cat="todas">
+        <span class="cat-emoji">🌟</span>
+        <span class="cat-label">Todas</span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="mar">
+        <span class="cat-emoji">🌊</span>
+        <span class="cat-label">Mar &amp; Pesca</span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="terra">
+        <span class="cat-emoji">🏡</span>
+        <span class="cat-label">Terra &amp; Raízes<small>Montinhos, Sines, Burgau, Lagos</small></span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="familia">
+        <span class="cat-emoji">❤️</span>
+        <span class="cat-label">Família &amp; Amor</span>
+      </button>
+      <button type="button" class="cat-btn" data-cat="folclore">
+        <span class="cat-emoji">🎶</span>
+        <span class="cat-label">Folclore &amp; Cantigas</span>
+      </button>
+    </nav>
+
+    <!-- Pesquisa Rápida e Ações Principais -->
+    <section class="controls-panel" aria-label="Pesquisa e ações">
+      <div class="search-wrap">
+        <span class="search-icon" aria-hidden="true">🔍</span>
+        <input
+          type="search"
+          id="search-input"
+          placeholder="Procurar título ou verso num instante..."
+          autocomplete="off"
+          aria-label="Procurar título ou verso"
+        >
+        <button type="button" id="btn-clear-search" class="clear-search hidden" aria-label="Limpar pesquisa">✕</button>
+      </div>
+
+      <div class="primary-actions">
+        <button type="button" id="btn-new" class="btn btn-primary btn-lg">
+          + Nova Letra / Poema
+        </button>
+        <button type="button" id="btn-import" class="btn btn-secondary">
+          📥 Importar Ficheiros (.txt / .doc)
+        </button>
+        <button type="button" id="btn-backup" class="btn btn-secondary">
+          💾 Guardar Cópia de Segurança
+        </button>
+      </div>
+
+      <input
+        type="file"
+        id="file-input"
+        accept=".txt,.doc,.docx,.rtf,.json,text/plain"
+        multiple
+        class="hidden"
+      >
+    </section>
+
+    <!-- Contador / Estado -->
+    <div class="list-meta">
+      <span id="results-count">A carregar...</span>
+    </div>
+
+    <!-- Lista de Poemas e Músicas -->
+    <section id="items-grid" class="items-grid" aria-live="polite"></section>
+  </main>
+
+  <!-- Modal de Leitura / Cantar -->
+  <div id="reader-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="reader-title">
+    <div class="modal-backdrop" data-close="reader"></div>
+    <div class="modal-card modal-reader">
+      <div class="modal-header">
+        <div class="reader-badges">
+          <span id="reader-cat-badge" class="badge badge-cat"></span>
+          <span id="reader-style-badge" class="badge badge-style"></span>
+        </div>
+        <div class="reader-top-actions">
+          <button type="button" id="reader-font-down" class="icon-btn" title="Diminuir letra">A-</button>
+          <button type="button" id="reader-font-up" class="icon-btn" title="Aumentar letra">A+</button>
+          <button type="button" class="close-btn" data-close="reader" aria-label="Fechar">✕</button>
+        </div>
+      </div>
+
+      <h2 id="reader-title" class="reader-title"></h2>
+      <p id="reader-date" class="reader-date"></p>
+
+      <div id="reader-body" class="reader-body"></div>
+
+      <div class="reader-footer">
+        <button type="button" id="btn-copy" class="btn btn-action">📋 Copiar Letra</button>
+        <button type="button" id="btn-share" class="btn btn-action">📤 Partilhar</button>
+        <button type="button" id="btn-edit" class="btn btn-secondary">✏️ Editar</button>
+        <button type="button" id="btn-delete" class="btn btn-danger">🗑️ Apagar</button>
+      </div>
+
+      <!-- Painel rápido de partilha (WhatsApp / Facebook) quando o navegador não tem partilha nativa ou para escolha direta -->
+      <div id="share-fallback" class="share-fallback hidden">
+        <span>Partilhar diretamente em:</span>
+        <div class="share-links">
+          <a id="share-whatsapp" href="#" target="_blank" rel="noopener" class="btn btn-whatsapp">WhatsApp</a>
+          <a id="share-facebook" href="#" target="_blank" rel="noopener" class="btn btn-facebook">Facebook</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal de Editor (Nova Letra / Editar / Ditado por Voz) -->
+  <div id="editor-modal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="editor-heading">
+    <div class="modal-backdrop" data-close="editor"></div>
+    <div class="modal-card modal-editor">
+      <div class="modal-header">
+        <h2 id="editor-heading">Nova Letra / Poema</h2>
+        <button type="button" class="close-btn" data-close="editor" aria-label="Fechar">✕</button>
+      </div>
+
+      <form id="editor-form" class="editor-form">
+        <input type="hidden" id="edit-id">
+
+        <label class="field">
+          <span>Título</span>
+          <input type="text" id="edit-title" required placeholder="Ex: Maré de Sines, Cantiga de Burgau...">
+        </label>
+
+        <div class="field-row">
+          <label class="field">
+            <span>Categoria</span>
+            <select id="edit-category" required>
+              <option value="mar">🌊 Mar &amp; Pesca</option>
+              <option value="terra">🏡 Terra &amp; Raízes (Montinhos, Sines, Burgau, Lagos)</option>
+              <option value="familia">❤️ Família &amp; Amor</option>
+              <option value="folclore">🎶 Folclore &amp; Cantigas</option>
+            </select>
+          </label>
+
+          <label class="field">
+            <span>Estilo Musical</span>
+            <select id="edit-style" required>
+              <option value="Fado">Fado</option>
+              <option value="Folclore">Folclore</option>
+              <option value="Balada">Balada</option>
+              <option value="Rap">Rap</option>
+              <option value="Quadras">Quadras</option>
+            </select>
+          </label>
+        </div>
+
+        <div class="voice-bar">
+          <button type="button" id="btn-voice" class="btn btn-voice">
+            🎤 Ditar por Voz (Português)
+          </button>
+          <span id="voice-status" class="voice-status"></span>
+        </div>
+
+        <label class="field">
+          <span>Letra / Versos</span>
+          <textarea
+            id="edit-content"
+            rows="10"
+            required
+            placeholder="Escreve aqui os teus versos ou carrega no botão do microfone acima para ditar falando..."
+          ></textarea>
+        </label>
+
+        <div class="editor-footer">
+          <button type="button" class="btn btn-secondary" data-close="editor">Cancelar</button>
+          <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Letra</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast de Notificações -->
+  <div id="toast" class="toast hidden" role="status" aria-live="polite"></div>
+
+  <script src="./app.js"></script>
+</body>
+</html>

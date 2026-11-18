@@ -92,7 +92,10 @@
   const readerModal = document.getElementById('reader-modal');
   const readerTitle = document.getElementById('reader-title');
   const readerDate = document.getElementById('reader-date');
+  const readerAudioWrap = document.getElementById('reader-audio-wrap');
+  const readerAudio = document.getElementById('reader-audio');
   const readerBody = document.getElementById('reader-body');
+  let currentAudioUrl = null;
   const readerCatBadge = document.getElementById('reader-cat-badge');
   const readerStyleBadge = document.getElementById('reader-style-badge');
   const readerFontDown = document.getElementById('reader-font-down');
@@ -258,6 +261,13 @@
 
       badges.append(bCat, bStyle);
 
+      if (item.hasAudio) {
+        const bAudio = document.createElement('span');
+        bAudio.className = 'badge badge-audio';
+        bAudio.textContent = '🎵 Áudio';
+        badges.appendChild(bAudio);
+      }
+
       const title = document.createElement('h3');
       title.className = 'card-title';
       title.textContent = item.title;
@@ -286,7 +296,7 @@
   }
 
   // Reader Modal
-  function openReader(id) {
+  async function openReader(id) {
     const item = items.find((x) => x.id === id);
     if (!item) return;
 
@@ -299,11 +309,35 @@
     readerBody.textContent = item.content;
     shareFallback.classList.add('hidden');
 
+    clearReaderAudio();
+    if (item.hasAudio) {
+      try {
+        const blob = await getAudioBlob(item.id);
+        if (blob) {
+          currentAudioUrl = URL.createObjectURL(blob);
+          readerAudio.src = currentAudioUrl;
+          readerAudioWrap.classList.remove('hidden');
+        }
+      } catch (_) {}
+    }
+
     readerModal.classList.remove('hidden');
     document.body.style.overflow = 'hidden';
   }
 
+  function clearReaderAudio() {
+    readerAudio.pause();
+    readerAudio.removeAttribute('src');
+    readerAudio.load();
+    readerAudioWrap.classList.add('hidden');
+    if (currentAudioUrl) {
+      URL.revokeObjectURL(currentAudioUrl);
+      currentAudioUrl = null;
+    }
+  }
+
   function closeReader() {
+    clearReaderAudio();
     readerModal.classList.add('hidden');
     document.body.style.overflow = '';
     currentItemId = null;
@@ -499,17 +533,88 @@
     showToast('Cópia de segurança descarregada! Podes guardá-la no Google Drive.');
   }
 
-  // File Import (.txt, .doc, .docx, .rtf, .json)
+  // IndexedDB para ficheiros de áudio offline
+  function openAudioDb() {
+    return new Promise((resolve, reject) => {
+      if (!window.indexedDB) return reject(new Error('IndexedDB indisponível'));
+      const req = indexedDB.open('caderno_musicas_audio_db', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('audio')) {
+          db.createObjectStore('audio');
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function saveAudioBlob(id, blob) {
+    const db = await openAudioDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('audio', 'readwrite');
+      tx.objectStore('audio').put(blob, id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    });
+  }
+
+  async function getAudioBlob(id) {
+    const db = await openAudioDb();
+    return new Promise((resolve, reject) => {
+      const tx = db.transaction('audio', 'readonly');
+      const req = tx.objectStore('audio').get(id);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror = () => reject(req.error);
+    });
+  }
+
+  async function deleteAudioBlob(id) {
+    try {
+      const db = await openAudioDb();
+      const tx = db.transaction('audio', 'readwrite');
+      tx.objectStore('audio').delete(id);
+    } catch (_) {}
+  }
+
+  function guessCategoryFromTitle(title) {
+    const t = title.toLowerCase();
+    if (/(mar|marinheiro|porto|cação|barco|pesca|onda|maré|farol)/.test(t)) return 'mar';
+    if (/(lagos|sines|burgau|montinhos|terra|sol|calcário|barro)/.test(t)) return 'terra';
+    if (/(amor|ti|rosto|família|dedos|neto|coração|mãe|pai)/.test(t)) return 'familia';
+    return activeCategory !== 'todas' ? activeCategory : 'folclore';
+  }
+
+  // File Import (.txt, .doc, .docx, .rtf, .json, .mp3, .m4a, .wav, .ogg, .flac)
   async function handleFiles(fileList) {
     if (!fileList || fileList.length === 0) return;
 
     let importedCount = 0;
+    const AUDIO_EXTS = new Set(['mp3', 'm4a', 'wav', 'ogg', 'flac', 'aac', 'opus']);
 
     for (const file of fileList) {
       const name = file.name || 'Letra Importada';
-      const ext = name.split('.').pop().toLowerCase();
+      const ext = name.includes('.') ? name.split('.').pop().toLowerCase() : '';
 
       try {
+        if (AUDIO_EXTS.has(ext) || (file.type && file.type.startsWith('audio/'))) {
+          const id = generateId();
+          await saveAudioBlob(id, file);
+          const cleanTitle = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim() || 'Música Áudio';
+          items.unshift({
+            id,
+            title: cleanTitle,
+            category: guessCategoryFromTitle(cleanTitle),
+            style: 'Balada',
+            hasAudio: true,
+            audioName: name,
+            content: `🎵 Áudio importado: ${name}\n\nCarrega em "✏️ Editar" para escrever ou ditar por voz a letra desta música enquanto a ouves.`,
+            updatedAt: new Date().toISOString()
+          });
+          importedCount++;
+          continue;
+        }
+
         if (ext === 'json') {
           const text = await file.text();
           const parsed = JSON.parse(text);
@@ -730,6 +835,7 @@
       const item = items.find((x) => x.id === currentItemId);
       if (!item) return;
       if (confirm(`Queres mesmo apagar "${item.title}"?`)) {
+        if (item.hasAudio) deleteAudioBlob(item.id);
         items = items.filter((x) => x.id !== currentItemId);
         saveItems();
         closeReader();

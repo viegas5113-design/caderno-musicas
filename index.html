@@ -81,7 +81,7 @@
           + Nova Letra / Poema
         </button>
         <button type="button" id="btn-import" class="btn btn-secondary">
-          📥 Importar Ficheiros (.txt / .doc)
+          📥 Importar (.txt / .doc / Áudio)
         </button>
         <button type="button" id="btn-backup" class="btn btn-secondary">
           💾 Guardar Cópia de Segurança
@@ -91,7 +91,7 @@
       <input
         type="file"
         id="file-input"
-        accept=".txt,.doc,.docx,.rtf,.json,text/plain"
+        accept=".txt,.doc,.docx,.rtf,.json,.mp3,.m4a,.wav,.ogg,.flac,text/plain,audio/*"
         multiple
         class="hidden"
       >
@@ -124,6 +124,10 @@
 
       <h2 id="reader-title" class="reader-title"></h2>
       <p id="reader-date" class="reader-date"></p>
+
+      <div id="reader-audio-wrap" class="reader-audio hidden">
+        <audio id="reader-audio" controls preload="metadata"></audio>
+      </div>
 
       <div id="reader-body" class="reader-body"></div>
 

@@ -110,14 +110,16 @@
       if (!Array.isArray(catalog) || catalog.length === 0) return;
 
       const existingIds = new Set(items.map((x) => x.id));
+      const existingKeys = new Set(items.map((x) => normalizeKey(x.audioName || x.title)));
       let added = 0;
       for (const entry of catalog) {
-        if (entry && entry.id && !existingIds.has(entry.id)) {
+        const key = normalizeKey(entry && (entry.audioName || entry.title));
+        if (entry && entry.id && !existingIds.has(entry.id) && !existingKeys.has(key)) {
           items.push(entry);
           added++;
         }
       }
-      if (added > 0) {
+      if (deduplicateItems() || added > 0) {
         saveItems();
         renderList();
         if (!vaultModal.classList.contains('hidden')) renderVaultList();
@@ -147,6 +149,50 @@
     btnTheme.textContent = prefs.darkMode ? '☀️' : '🌙';
   }
 
+  function normalizeKey(str) {
+    return String(str || '')
+      .toLowerCase()
+      .replace(/\.[^.]+$/, '')
+      .replace(/[_-]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function deduplicateItems() {
+    const seen = new Map();
+    const cleaned = [];
+    for (const item of items) {
+      if (!item || !item.id || String(item.id).startsWith('seed-')) continue;
+      const key = normalizeKey(item.audioName || item.title);
+      if (!key) {
+        cleaned.push(item);
+        continue;
+      }
+      if (!seen.has(key)) {
+        seen.set(key, cleaned.length);
+        cleaned.push(item);
+      } else {
+        const idx = seen.get(key);
+        const prev = cleaned[idx];
+        // Preferir o que tem letra personalizada ou audioUrl local
+        const prevIsPlaceholder = !prev.content || prev.content.startsWith('🎵 ');
+        const currIsPlaceholder = !item.content || item.content.startsWith('🎵 ');
+        if (prevIsPlaceholder && !currIsPlaceholder) {
+          if (prev.hasAudio && !prev.audioUrl) deleteAudioBlob(prev.id);
+          cleaned[idx] = item;
+        } else if (!prev.audioUrl && item.audioUrl) {
+          if (prev.hasAudio && !prev.audioUrl) deleteAudioBlob(prev.id);
+          cleaned[idx] = { ...item, content: prevIsPlaceholder ? item.content : prev.content };
+        } else {
+          if (item.hasAudio && !item.audioUrl) deleteAudioBlob(item.id);
+        }
+      }
+    }
+    const changed = cleaned.length !== items.length;
+    items = cleaned;
+    return changed;
+  }
+
   function loadItems() {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -158,18 +204,24 @@
         items = Array.isArray(parsed) ? parsed : [];
       }
 
+      let changed = false;
+
       // Mover músicas existentes do painel principal para "Minhas Músicas"
       if (!localStorage.getItem('caderno_panel_cleared_v3')) {
-        let changed = false;
         for (const item of items) {
           if (!item.inVault) {
             item.inVault = true;
             changed = true;
           }
         }
-        if (changed) saveItems();
         localStorage.setItem('caderno_panel_cleared_v3', '1');
       }
+
+      if (deduplicateItems()) {
+        changed = true;
+      }
+
+      if (changed) saveItems();
     } catch (_) {
       items = [];
     }
@@ -783,6 +835,7 @@
     }
 
     if (importedCount > 0) {
+      deduplicateItems();
       saveItems();
       renderList();
       if (!vaultModal.classList.contains('hidden')) renderVaultList();
